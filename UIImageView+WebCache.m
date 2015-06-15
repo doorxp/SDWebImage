@@ -7,8 +7,25 @@
  */
 
 #import "UIImageView+WebCache.h"
+#import <objc/runtime.h>
+
+@interface UIImageView (NSURL)
+@property (nonatomic, strong)NSURL *url;
+@end
+
+const char *keyImageURL = "url";
 
 @implementation UIImageView (WebCache)
+
+- (void)setUrl:(NSURL *)url
+{
+    objc_setAssociatedObject(self, keyImageURL, url, OBJC_ASSOCIATION_RETAIN);
+}
+
+- (NSURL *)url
+{
+    return objc_getAssociatedObject(self, keyImageURL);
+}
 
 - (void)setImageWithURL:(NSURL *)url
 {
@@ -22,6 +39,13 @@
 
 - (void)setImageWithURL:(NSURL *)url placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options
 {
+    if ([self.url isEqual:url])
+    {
+        return;
+    }
+    
+    self.url = url;
+    
     SDWebImageManager *manager = [SDWebImageManager sharedManager];
 
     // Remove in progress downloader from queue
@@ -35,9 +59,41 @@
     }
 }
 
+#if NS_BLOCKS_AVAILABLE
+- (void)setImageWithURL:(NSURL *)url success:(void (^)(UIImage *image))success failure:(void (^)(NSError *error))failure;
+{
+    [self setImageWithURL:url placeholderImage:nil success:success failure:failure];
+}
+
+- (void)setImageWithURL:(NSURL *)url placeholderImage:(UIImage *)placeholder success:(void (^)(UIImage *image))success failure:(void (^)(NSError *error))failure;
+{
+    [self setImageWithURL:url placeholderImage:placeholder options:0 success:success failure:failure];
+}
+
+- (void)setImageWithURL:(NSURL *)url placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options success:(void (^)(UIImage *image))success failure:(void (^)(NSError *error))failure;
+{
+    SDWebImageManager *manager = [SDWebImageManager sharedManager];
+
+    // Remove in progress downloader from queue
+    [manager cancelForDelegate:self];
+
+    self.image = placeholder;
+
+    if (url)
+    {
+        [manager downloadWithURL:url delegate:self options:options success:success failure:failure];
+    }
+}
+#endif
+
 - (void)cancelCurrentImageLoad
 {
     [[SDWebImageManager sharedManager] cancelForDelegate:self];
+}
+
+- (void)webImageManager:(SDWebImageManager *)imageManager didProgressWithPartialImage:(UIImage *)image forURL:(NSURL *)url
+{
+    self.image = image;
 }
 
 - (void)webImageManager:(SDWebImageManager *)imageManager didFinishWithImage:(UIImage *)image

@@ -19,6 +19,7 @@ static SDWebImagePrefetcher *instance;
 
 @synthesize prefetchURLs;
 @synthesize maxConcurrentDownloads;
+@synthesize options;
 
 + (SDWebImagePrefetcher *)sharedImagePrefetcher
 {
@@ -26,6 +27,7 @@ static SDWebImagePrefetcher *instance;
     {
         instance = [[SDWebImagePrefetcher alloc] init];
         instance.maxConcurrentDownloads = 3;
+        instance.options = (SDWebImageLowPriority);
     }
 
     return instance;
@@ -35,13 +37,13 @@ static SDWebImagePrefetcher *instance;
 {
     if (index >= [self.prefetchURLs count]) return;
     _requestedCount++;
-    [imageManager downloadWithURL:[self.prefetchURLs objectAtIndex:index] delegate:self options:SDWebImageLowPriority];
+    [imageManager downloadWithURL:[self.prefetchURLs objectAtIndex:index] delegate:self options:self.options];
 }
 
 - (void)reportStatus
 {
-    NSUInteger total = [self.prefetchURLs count];
-    NSLog(@"Finished prefetching (%d successful, %d skipped, timeElasped %.2f)", total - _skippedCount, _skippedCount, CFAbsoluteTimeGetCurrent() - _startedTime);
+    NSUInteger total __unused = [self.prefetchURLs count];
+    NSLog(@"Finished prefetching (%d successful, %d skipped, timeElasped %.2f)", (int)(total - _skippedCount), (int)_skippedCount, CFAbsoluteTimeGetCurrent() - _startedTime);
 }
 
 - (void)prefetchURLs:(NSArray *)urls
@@ -51,9 +53,9 @@ static SDWebImagePrefetcher *instance;
     self.prefetchURLs = urls;
 
     // Starts prefetching from the very first image on the list with the max allowed concurrency
-    int listCount = [self.prefetchURLs count];
+    NSUInteger listCount = [self.prefetchURLs count];
     SDWebImageManager *manager = [SDWebImageManager sharedManager];
-    for (int i = 0; i < self.maxConcurrentDownloads && _requestedCount < listCount; i++)
+    for (NSUInteger i = 0; i < self.maxConcurrentDownloads && _requestedCount < listCount; i++)
     {
         [self startPrefetchingAtIndex:i withManager:manager];
     }
@@ -73,7 +75,7 @@ static SDWebImagePrefetcher *instance;
 - (void)webImageManager:(SDWebImageManager *)imageManager didFinishWithImage:(UIImage *)image
 {
     _finishedCount++;
-    NSLog(@"Prefetched %d out of %d", _finishedCount, [self.prefetchURLs count]);
+    NSLog(@"Prefetched %d out of %d", (int)_finishedCount, (int)[self.prefetchURLs count]);
 
     if ([self.prefetchURLs count] > _requestedCount)
     {
@@ -88,7 +90,7 @@ static SDWebImagePrefetcher *instance;
 - (void)webImageManager:(SDWebImageManager *)imageManager didFailWithError:(NSError *)error
 {
     _finishedCount++;
-    NSLog(@"Prefetched %d out of %d (Failed)", _finishedCount, [self.prefetchURLs count]);
+    NSLog(@"Prefetched %d out of %d (Failed)", (int)_finishedCount, (int)[self.prefetchURLs count]);
 
     // Add last failed
     _skippedCount++;
@@ -106,7 +108,7 @@ static SDWebImagePrefetcher *instance;
 - (void)dealloc
 {
     self.prefetchURLs = nil;
-    [super dealloc];
+    SDWISuperDealoc;
 }
 
 @end
